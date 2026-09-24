@@ -1,0 +1,99 @@
+name: Build ATtiny85 firmware
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - '**'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install AVR toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-avr avr-libc binutils-avr
+
+      - name: Build firmware
+        run: |
+          mkdir -p dist
+
+          avr-gcc \
+            -Wall -Wextra -Os -std=gnu11 \
+            -ffunction-sections -fdata-sections \
+            -Wl,--gc-sections \
+            -DF_CPU=1000000UL \
+            -mmcu=attiny85 \
+            -o dist/mx5-immobilizer-bypass.elf \
+            main.c
+
+          avr-objcopy \
+            -j .text -j .data \
+            -O ihex \
+            dist/mx5-immobilizer-bypass.elf \
+            dist/mx5-immobilizer-bypass.hex
+
+          avr-objcopy \
+            -j .text -j .data \
+            -O binary \
+            dist/mx5-immobilizer-bypass.elf \
+            dist/mx5-immobilizer-bypass.bin
+
+          cp main.c dist/mx5-immobilizer-bypass.c
+
+          avr-size -C --mcu=attiny85 dist/mx5-immobilizer-bypass.elf
+
+      # upload-artifact@v7 supports direct, unarchived single-file artifacts.
+      # Each output therefore appears as its own downloadable file in the run summary.
+      - name: Upload HEX
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/mx5-immobilizer-bypass.hex
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload BIN
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/mx5-immobilizer-bypass.bin
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload ELF
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/mx5-immobilizer-bypass.elf
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload source
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/mx5-immobilizer-bypass.c
+          archive: false
+          if-no-files-found: error
+
+      - name: Create GitHub release for version tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            dist/mx5-immobilizer-bypass.hex \
+            dist/mx5-immobilizer-bypass.bin \
+            dist/mx5-immobilizer-bypass.elf \
+            dist/mx5-immobilizer-bypass.c \
+            --verify-tag \
+            --generate-notes
+
