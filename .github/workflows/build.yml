@@ -50,15 +50,38 @@ jobs:
             dist/mx5-immobilizer-bypass.elf \
             dist/mx5-immobilizer-bypass.bin
 
+          cp main.c dist/mx5-immobilizer-bypass.c
+
           avr-size -C --mcu=attiny85 dist/mx5-immobilizer-bypass.elf
 
-      - name: Upload build artifacts
+      # upload-artifact@v7 supports direct, unarchived single-file artifacts.
+      # Each output therefore appears as its own downloadable file in the run summary.
+      - name: Upload HEX
         uses: actions/upload-artifact@v7
         with:
-          name: mx5-immobilizer-bypass-${{ github.sha }}
-          path: |
-            dist/mx5-immobilizer-bypass.hex
-            dist/mx5-immobilizer-bypass.bin
+          path: dist/mx5-immobilizer-bypass.hex
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload BIN
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/mx5-immobilizer-bypass.bin
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload ELF
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/mx5-immobilizer-bypass.elf
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload source
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/mx5-immobilizer-bypass.c
+          archive: false
           if-no-files-found: error
 
       - name: Create GitHub release for version tags
@@ -69,6 +92,8 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" \
             dist/mx5-immobilizer-bypass.hex \
             dist/mx5-immobilizer-bypass.bin \
+            dist/mx5-immobilizer-bypass.elf \
+            dist/mx5-immobilizer-bypass.c \
             --verify-tag \
             --generate-notes
 
